@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exposición: TAD Cola en C</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;700&family=Poppins:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* CSS Reset & Base */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html {
+            height: 100%;
+            width: 100%;
+            overflow: hidden; /* Prevent scrolling, act like a presentation */
+            background-color: #020617; /* Very dark slate */
+            font-family: 'Inter', sans-serif;
+            color: #cbd5e1;
+        }
+
+        /* Presentation Container */
+        .presentation {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Slide Styles */
+        .slide {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw; 
+            height: 100vh;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+            pointer-events: none; /* Can't click hidden slides */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .slide.active {
+            opacity: 1;
+            pointer-events: auto;
+            z-index: 10;
+        }
+
+        /* Inner Content Wrapper - NOW FULL SCREEN */
+        .slide-content {
+            background-color: #0f172a; /* Slate 900 */
+            width: 100%;
+            height: 100%;
+            /* Padding ajustado para dejar espacio a la barra de controles abajo */
+            padding: 60px 10% 100px 10%; 
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Background decorations inside slide */
+        .slide-content::before {
+            content: ''; position: absolute; top: -20%; left: -10%; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.04), transparent 60%); z-index: 0;
+        }
+        .slide-content::after {
+            content: ''; position: absolute; bottom: -20%; right: -10%; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 50%, rgba(74, 222, 128, 0.03), transparent 70%); border-radius: 50%; z-index: 0;
+        }
+        
+        .slide-content > * { position: relative; z-index: 1; } /* Keep text above decors */
+
+        /* Typography */
+        h1, h2, h3 { font-family: 'Poppins', sans-serif; color: #f8fafc; font-weight: 700; }
+        p, li { font-size: 24px; line-height: 1.6; margin-bottom: 20px; } /* Texto un poco más grande para full screen */
+        
+        /* Titles */
+        .title-layout { text-align: center; margin: auto; }
+        .title-layout h1 { font-size: 80px; line-height: 1.2; margin-bottom: 20px;} /* Título más grande */
+        .title-layout h1 span { color: #38bdf8; }
+        .title-layout .subtitle { font-size: 26px; color: #94a3b8; max-width: 900px; margin: 0 auto; }
+
+        .slide-title {
+            font-size: 50px;
+            margin-bottom: 40px;
+            border-bottom: 2px solid #1e293b;
+            padding-bottom: 15px;
+            width: 100%;
+        }
+
+        /* Layouts */
+        .content-area { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
+        
+        .two-column { display: grid; grid-template-columns: 1.2fr 1fr; gap: 60px; width: 100%; align-items: center; }
+        .two-column.tiled { grid-template-columns: 1fr 1fr; align-items: stretch; gap: 40px;}
+        .two-column.tiled > div {
+            background-color: #1e293b; border-radius: 12px; border: 1px solid #334155;
+            padding: 40px; display: flex; flex-direction: column;
+        }
+
+        .two-column ul { list-style: none; }
+        .two-column li { position: relative; padding-left: 35px; margin-bottom: 25px; }
+        .two-column li::before {
+            content: '▹'; position: absolute; left: 0; color: #38bdf8; font-size: 28px; line-height: 1.2;
+        }
+
+        /* Lists */
+        .bullet-list ul { list-style: none; max-width: 1200px; margin: 0 auto; }
+        .bullet-list li {
+            background: #1e293b; padding: 20px 40px 20px 80px; border-radius: 12px;
+            border-left: 4px solid #38bdf8; position: relative; margin-bottom: 20px; font-size: 22px;
+        }
+        .bullet-list i {
+            color: #38bdf8; font-size: 28px; position: absolute; left: 25px; top: 50%; transform: translateY(-50%);
+        }
+        .bullet-list li strong { color: #4ade80; font-size: 24px; display: inline-block; margin-right: 5px; }
+
+        /* Icon/Diagram Wrappers instead of Images */
+        .diagram-wrapper {
+            background-color: #1e293b; border-radius: 12px; height: 450px; width: 100%;
+            display: flex; justify-content: center; align-items: center; flex-direction: column;
+            border: 1px solid #334155; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        /* Code Blocks */
+        .code-block {
+            background-color: #020617; border: 1px solid #1e293b; border-radius: 8px;
+            padding: 20px; font-family: 'Fira Code', monospace; font-size: 18px; color: #a5b4fc;
+            white-space: pre-wrap; margin-top: 15px; line-height: 1.5;
+        }
+        .code-keyword { color: #c084fc; font-weight: 500; }
+        .code-type { color: #38bdf8; }
+        .code-function { color: #818cf8; }
+        .code-comment { color: #64748b; }
+
+        /* Section Transition Slides */
+        .section-title-layout { text-align: center; margin: auto; }
+        .section-title-layout h2 { font-size: 70px; margin-bottom: 20px; }
+        .section-title-layout hr { background-color: #38bdf8; border: none; height: 6px; width: 120px; margin: 30px auto; border-radius: 3px; }
+
+        /* UI Controls */
+        .controls {
+            position: fixed; bottom: 30px; left: 0; width: 100%;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 50px; z-index: 100;
+        }
+        .btn-nav {
+            background: #1e293b; color: #f8fafc; border: 1px solid #334155; border-radius: 50%;
+            width: 60px; height: 60px; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; font-size: 24px; transition: all 0.2s;
+        }
+        .btn-nav:hover { background: #38bdf8; color: #020617; border-color: #38bdf8; }
+        .btn-nav:disabled { opacity: 0.3; cursor: not-allowed; }
+        
+        .counter { font-family: 'Fira Code', monospace; font-size: 18px; color: #64748b; background: rgba(15, 23, 42, 0.8); padding: 8px 16px; border-radius: 20px;}
+        
+        /* Hint */
+        .keyboard-hint {
+            position: absolute; top: 30px; right: 30px; font-size: 14px; color: #64748b; font-family: 'Inter';
+            background: rgba(15, 23, 42, 0.8); padding: 8px 15px; border-radius: 6px; z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="presentation" id="presentation">
+        
+        <!-- Slide 1 -->
+        <div class="slide active">
+            <div class="slide-content">
+                <div class="title-layout">
+                    <h1>Descripción del <span>TAD Cola</span></h1>
+                    <p class="subtitle">Estructuras de Datos: Conceptos fundamentales, implementaciones estáticas (Circulares), dinámicas y sus aplicaciones en el Sistema Operativo.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2 -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2 class="slide-title">Concepto: Listas FIFO (First In First Out)</h2>
+                <div class="content-area">
+                    <div class="two-column">
+                        <div>
+                            <p>Una <strong>COLA</strong> es un tipo especial de lista lineal, un concepto que abunda en la vida cotidiana (bancos, supermercado).</p>
+                            <ul>
+                                <li><strong>Dos extremos:</strong> Funciona exclusivamente a través de dos puntos de acceso: FRENTE y FINAL.</li>
+                                <li><strong>Llegadas (Encolar):</strong> Todo elemento nuevo se ubica siempre al FINAL.</li>
+                                <li><strong>Salidas (Desencolar):</strong> Los elementos siempre se atienden y eliminan desde el FRENTE.</li>
+                                <li><strong>Política FIFO:</strong> El primero en llegar será el primero en salir.</li>
+                            </ul>
+                        </div>
+                        <div class="diagram-wrapper">
+                            <img src="fifo.jpeg" style="width:100%; height:100%; object-fit:contain;">
+                            <p style="margin-top: 30px; font-family: 'Fira Code'; color: #38bdf8; font-size: 18px;">/* FIFO en acción */</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3 -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2 class="slide-title">Especificación del TAD Cola</h2>
+                <div class="content-area">
+                    <div class="bullet-list">
+                        <ul>
+                            <li><i class="fa-solid fa-power-off"></i> <strong>Inicializar (Initialize):</strong> Recibe una cola y la inicializa (prepara apuntadores).</li>
+                            <li><i class="fa-solid fa-arrow-right-to-bracket"></i> <strong>Encolar (Queue):</strong> Agrega un elemento nuevo exclusivamente al final. El final aumenta.</li>
+                            <li><i class="fa-solid fa-arrow-right-from-bracket"></i> <strong>Desencolar (Dequeue):</strong> Remueve el elemento del frente de la cola y lo retorna.</li>
+                            <li><i class="fa-solid fa-magnifying-glass"></i> <strong>Es vacía (Empty):</strong> Devuelve verdadero si no contiene elementos.</li>
+                            <li><i class="fa-solid fa-arrows-left-right"></i> <strong>Frente / Final:</strong> Retornan una lectura de los elementos ubicados en los extremos sin eliminarlos.</li>
+                            <li><i class="fa-solid fa-trash"></i> <strong>Eliminar (Destroy):</strong> Libera completamente su espacio en memoria.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4 -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2 class="slide-title">Control de Errores: Estados Críticos</h2>
+                <div class="content-area">
+                    <div class="two-column tiled">
+                        <div>
+                            <h3 style="color:#38bdf8; margin-bottom: 15px; font-size: 30px;"><i class="fa-solid fa-box-open"></i> Subdesbordamiento (Underflow)</h3>
+                            <p>Al remover el último elemento, la cola queda vacía. Una vez vacía, no se pueden sacar elementos.</p>
+                            <p style="color:#94a3b8; font-size: 20px; border-top: 1px solid #334155; padding-top: 20px;">Cualquier intento de desencolar o acceder a elementos de una <strong>Cola Vacía</strong> causa un Subdesbordamiento (error fatal en ejecución).</p>
+                        </div>
+                        <div>
+                            <h3 style="color: #f87171; margin-bottom: 15px; font-size: 30px;"><i class="fa-solid fa-box-archive"></i> Desbordamiento (Overflow)</h3>
+                            <p>Aplica principalmente en implementaciones estáticas. Ocurre cuando el hardware o arreglo llega a su límite de capacidad.</p>
+                            <p style="color:#94a3b8; font-size: 20px; border-top: 1px solid #334155; padding-top: 20px;">Cualquier intento de introducir elementos a una cola que ha llegado a su <strong>MÁXIMO_TAMAÑO</strong> (Cola Llena) causa un Desbordamiento.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5 -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2 class="slide-title">Implementación Estática (Arreglos)</h2>
+                <div class="content-area">
+                    <div class="two-column">
+                        <div>
+                            <p>Se utiliza un arreglo estático de tamaño definido <code>MAX</code>.</p>
+                            <ul>
+                                <li><strong>Frente:</strong> De dónde se extraen los elementos.</li>
+                                <li><strong>Final:</strong> Dónde se introducen.</li>
+                                <li><strong>El Problema:</strong> Al extraer del frente, la posición 0 queda vacía. El final sigue avanzando y marca "Cola Llena" falsamente.</li>
+                                <li>Recorrer todos los elementos a la izquierda cada vez que sacamos uno, consume demasiado procesamiento.</li>
+                            </ul>
+                        </div>
+                        <div class="diagram-wrapper" style="background: transparent; border: none; box-shadow: none;">
+                            <div style="background:#1e293b; padding: 30px; border-radius: 12px; width: 100%; border: 1px solid #334155;">
+                                <h4 style="color:#38bdf8; text-align:center; margin-bottom: 30px; font-family:'Poppins'; font-size: 24px;">Representación Lógica</h4>
+                                <table style="width:100%; border-collapse: collapse; background:#cbd5e1; text-align:center; font-size: 24px;">
+                                    <tr>
+                                        <td style="border: 3px solid #0f172a; width: 14%; height: 70px;"></td>
+                                        <td style="border: 3px solid #0f172a; width: 14%;"></td>
+                                        <td style="border: 3px solid #0f172a; width: 14%; background:#38bdf8; color:#000; font-weight:bold;">C<br><small style="font-size:12px;">Frente</small></td>
+                                        <td style="border: 3px solid #0f172a; width: 14%; background:#38bdf8; color:#000; font-weight:bold;">D</td>
+                                        <td style="border: 3px solid #0f172a; width: 14%; background:#38bdf8; color:#000; font-weight:bold;">E</td>
+                                        <td style="border: 3px solid #0f172a; width: 14%; background:#38bdf8; color:#000; font-weight:bold;">F</td>
+                                        <td style="border: 3px solid #0f172a; width: 14%; background:#38bdf8; color:#000; font-weight:bold;">G<br><small style="font-size:12px;">Final</small></td>
+                                    </tr>
+                                    <tr style="color:#f8fafc; font-size:16px;">
+                                        <td style="padding-top:10px;">0</td><td style="padding-top:10px;">1</td><td style="padding-top:10px;">2</td><td style="padding-top:10px;">3</td><td style="padding-top:10px;">4</td><td style="padding-top:10px;">5</td><td style="padding-top:10px;">6</td>
+                                    </tr>
+                                </table>
+                                <p style="text-align:center; font-size:18px; margin-top:20px; color:#f87171;">Los índices 0 y 1 quedan desperdiciados.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6 -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2 class="slide-title">La Solución: Cola Circular</h2>
+                <div class="content-area">
+                    <div class="two-column">
+                        <div>
+                            <p>El objetivo es <strong>aprovechar al máximo el espacio</strong> del arreglo sin desplazar los datos.</p>
+                            <ul>
+                                <li><strong>Idea Principal:</strong> Insertar elementos nuevos en las localidades previamente desocupadas al inicio.</li>
+                                <li><strong>Reinicio del Apuntador:</strong> Al llegar al final lógico, si hay espacio libre adelante, el apuntador `Final` <strong>se reinicia a 0</strong>.</li>
+                                <li>Se implementa usando el operador de módulo (<code>%</code>), formando lógicamente un "anillo" infinito.</li>
+                            </ul>
+                        </div>
+                        <div class="diagram-wrapper">
+                             <img src="Cola_circular.png" style="width:100%; height:100%; object-fit:contain;">
+                             <p style="margin-top: 50px; font-weight: bold; color: #94a3b8; font-size: 20px;">Reutilización de Memoria Activa</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="section-title-layout">
+                    <hr>
+                    <h2>Implementación Dinámica</h2>
+                    <p style="color: #94a3b8;">Representación mediante apuntadores y Nodos para eliminar por completo la restricción de tamaño máximo de los arreglos estáticos.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8 -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2 class="slide-title">Estructura Interna Dinámica</h2>
+                <div class="content-area">
+                    <div class="two-column tiled">
+                        <div>
+                            <h3 style="color:#38bdf8; margin-bottom: 10px;">1. Estructura del Nodo (Enlace)</h3>
+                            <p style="font-size:18px;">Cada bloque (nodo) se reserva sobre la marcha en la RAM y apunta al siguiente.</p>
+<div class="code-block">
+<span class="code-keyword">typedef struct</span> <span class="code-type">Nodo</span> {
+    <span class="code-type">int</span> dato;
+    <span class="code-keyword">struct</span> <span class="code-type">Nodo</span>* siguiente;
+} <span class="code-type">Nodo</span>;
+</div>
+                        </div>
+                        <div>
+                            <h3 style="color:#38bdf8; margin-bottom: 10px;">2. Cabecera (Cola)</h3>
+                            <p style="font-size:18px;">Mantiene el control absoluto de dónde empieza (Frente) y dónde termina (Final).</p>
+<div class="code-block">
+<span class="code-keyword">typedef struct</span> <span class="code-type">Cola</span> {
+    <span class="code-type">Nodo</span> *frente; 
+    <span class="code-type">Nodo</span> *final;  
+} <span class="code-type">Cola</span>;
+</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 9 -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2 class="slide-title">Operaciones Dinámicas</h2>
+                <div class="content-area">
+                    <div class="two-column">
+                        <div>
+                            <h3 style="margin-bottom: 15px;">Queue (Encolar)</h3>
+<div class="code-block">
+<span class="code-keyword">void</span> <span class="code-function">Queue</span>(<span class="code-type">Cola</span>* q, <span class="code-type">int</span> val) {
+    <span class="code-type">Nodo</span>* temp = crearNodo(val);
+    
+    <span class="code-keyword">if</span> (q->final == NULL) {
+        q->frente = q->final = temp;
+        <span class="code-keyword">return</span>;
+    }
+    
+    q->final->siguiente = temp;
+    q->final = temp;
+}
+</div>
+                        </div>
+                        <div>
+                            <h3 style="margin-bottom: 15px;">Dequeue (Desencolar)</h3>
+<div class="code-block">
+<span class="code-type">int</span> <span class="code-function">Dequeue</span>(<span class="code-type">Cola</span>* q) {
+    <span class="code-keyword">if</span> (q->frente == NULL) <span class="code-keyword">return</span> -1; 
+    
+    <span class="code-type">Nodo</span>* temp = q->frente;
+    <span class="code-type">int</span> dato = temp->dato;
+    
+    q->frente = q->frente->siguiente;
+    
+    <span class="code-keyword">if</span> (q->frente == NULL) q->final = NULL;
+        
+    free(temp); <span class="code-comment">// Libera RAM</span>
+    <span class="code-keyword">return</span> dato;
+}
+</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 10 -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2 class="slide-title">Aplicaciones en el Sistema Operativo</h2>
+                <div class="content-area">
+                    <div class="two-column">
+                        <div>
+                            <p>Las colas se utilizan fundamentalmente cuando varios procesos deben esperar por un recurso o servicio de hardware.</p>
+                            <ul>
+                                <li><strong>Recursos Compartidos (Spooling):</strong> Colas de impresión. Los documentos esperan ordenadamente su turno para salir a la impresora física.</li>
+                                <li><strong>Ready Queue (CPU):</strong> El administrador de procesos gestiona el procesador. Los programas abiertos se forman en la cola de procesos listos para recibir su "turno" de ejecución (multitasking).</li>
+                            </ul>
+                        </div>
+                        <div class="diagram-wrapper">
+                             <img src="cola.png" style="width:100%; height:100%; object-fit:contain;">
+                             <p style="margin-top: 30px; font-weight: bold; color: #94a3b8; font-size: 20px;">Spooler procesando trabajos</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 11 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="title-layout">
+                    <h1 style="font-size: 100px; margin-bottom:30px;">¿Preguntas?</h1>
+                    <p class="subtitle" style="font-size: 30px;">Gracias por su atención a la revisión del TAD Cola.</p>
+                    <div class="code-block" style="display:inline-block; margin-top: 60px; background: transparent; border: none; font-size: 30px; white-space: normal;">
+                        <span class="code-keyword">return</span> 0;
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- UI Controls -->
+    <div class="controls">
+        <button class="btn-nav" id="btnPrev" aria-label="Diapositiva Anterior"><i class="fa-solid fa-chevron-left"></i></button>
+        <div class="counter" id="slideCounter">1 / 11</div>
+        <button class="btn-nav" id="btnNext" aria-label="Siguiente Diapositiva"><i class="fa-solid fa-chevron-right"></i></button>
+    </div>
+    <div class="keyboard-hint">⌨️ Usa las flechas de tu teclado para navegar</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const slides = document.querySelectorAll('.slide');
+            const btnPrev = document.getElementById('btnPrev');
+            const btnNext = document.getElementById('btnNext');
+            const counter = document.getElementById('slideCounter');
+            
+            let currentSlide = 0;
+            const totalSlides = slides.length;
+
+            function updatePresentation() {
+                slides.forEach((slide, index) => {
+                    if (index === currentSlide) {
+                        slide.classList.add('active');
+                    } else {
+                        slide.classList.remove('active');
+                    }
+                });
+
+                counter.innerText = `${currentSlide + 1} / ${totalSlides}`;
+                
+                btnPrev.disabled = currentSlide === 0;
+                btnNext.disabled = currentSlide === totalSlides - 1;
+            }
+
+            function goToNextSlide() {
+                if (currentSlide < totalSlides - 1) {
+                    currentSlide++;
+                    updatePresentation();
+                }
+            }
+
+            function goToPrevSlide() {
+                if (currentSlide > 0) {
+                    currentSlide--;
+                    updatePresentation();
+                }
+            }
+
+            // Click events
+            btnNext.addEventListener('click', goToNextSlide);
+            btnPrev.addEventListener('click', goToPrevSlide);
+
+            // Keyboard events
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault(); // Prevent page scroll on spacebar
+                    goToNextSlide();
+                } else if (e.key === 'ArrowLeft') {
+                    goToPrevSlide();
+                }
+            });
+
+            // Initialize
+            updatePresentation();
+        });
+    </script>
+</body>
+</html>
